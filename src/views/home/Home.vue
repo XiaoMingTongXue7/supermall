@@ -3,45 +3,184 @@
     <nav-bar class="home-nav">
       <div slot="center">购物街</div>
     </nav-bar>
-    <home-swiper :banners="banners"/>
-    <RecommendView :recommends="recommends"/>
+    <tab-control class="tab-control"
+                 :titles="['流行', '新款', '精选']"
+                 @tabClick="tabClick" ref="tabControl2" v-show="isTabFixed"/>
+    <scroll class="content" ref="scroll" :probeType="3" @scroll="contentScroll" :pull-up-load="true" @pullingUp="pullingUp">
+      <home-swiper :banners="banners" @swiperImageLoad="swiperImageLoad"/>
+      <recommend-view :recommends="recommends"/>
+      <feature-view/>
+      <tab-control :titles="['流行', '新款', '精选']"
+                   @tabClick="tabClick" ref="tabControl1"/>
+      <goods-list :goods="showGoods"/>
+    </scroll>
+
+    <back-top @click.native="backClick" v-show="isShowBackTop"/>
   </div>
 </template>
 
 <script>
-  import NavBar from "components/common/navbar/NavBar";
   import HomeSwiper from "./childComps/HomeSwiper";
   import RecommendView from "./childComps/RecommendView";
+  import FeatureView from "./childComps/FeatureView";
 
-  import {getHomeMultidata} from "network/home";
+  import NavBar from "components/common/navbar/NavBar";
+  import Scroll from "components/common/scrooll/Scroll";
+  import TabControl from "components/content/tabControl/TabControl";
+  import GoodsList from "components/content/goods/GoodsList";
+  import BackTop from "components/content/backTop/BackTop";
+
+  import {getHomeMultidata, getHomeGoods} from "network/home";
+  import {debounce} from "common/util";
 
 
   export default {
     name: "Home",
     components: {
-      RecommendView,
+      GoodsList,
       NavBar,
-      HomeSwiper
+      TabControl,
+      Scroll,
+      BackTop,
+
+      RecommendView,
+      HomeSwiper,
+      FeatureView
     },
     data(){
       return{
         banners: [],
-        recommends: []
+        recommends: [],
+        goods: {
+          'pop': {
+            page: 0,
+            list:[]
+          },
+          'new': {
+            page: 0,
+            list:[]
+          },
+          'sell': {
+            page: 0,
+            list:[]
+          }
+        },
+        isShowBackTop: false,
+        currentType: 'pop',
+        tabOffsetTop: 0,
+        isTabFixed: false,
+        saveY: 0
+      }
+    },
+    computed: {
+      showGoods(){
+        return this.goods[this.currentType].list;
       }
     },
     created() {
-      getHomeMultidata().then((res) => {
-        window.console.log(res);
-        this.banners = res.data.banner.list;
-        this.recommends = res.data.recommend.list;
+      //请求轮播图等数据
+      this.getHomeMultidata();
+      //请求商品列表数据
+      this.getHomeGoodData('pop');
+      this.getHomeGoodData('new');
+      this.getHomeGoodData('sell');
+    },
+    mounted() {
+      const refresh = debounce(this.$refs.scroll.refresh, 100);
+      this.$bus.$on('itemImageLoad', () => {
+        refresh();
       });
+    },
+    deactivated() {
+      console.log(this.$refs.scroll.scroll.y);
+      this.saveY = this.$refs.scroll.scroll.y;
+    },
+    activated() {
+      this.$refs.scroll.scrollTo(0, this.saveY, 0);
+      this.$refs.scroll.refresh();
+    },
+    destroyed() {
+    },
+    methods: {
+      //事件监听相关
+      tabClick(index){
+        switch (index) {
+          case 0:
+            this.currentType = 'pop';
+            break;
+          case 1:
+            this.currentType = 'new';
+            break;
+          case 2:
+            this.currentType = 'sell';
+            break;
+        }
+        this.$refs.tabControl1.currentIndex = index;
+        this.$refs.tabControl2.currentIndex = index;
+      },
+      backClick(){
+        this.$refs.scroll.scrollTo(0, 0);
+      },
+      contentScroll(position){
+        // console.log(position.y);
+        this.isShowBackTop = (-position.y) > 1000;
+        this.isTabFixed = (-position.y) > this.tabOffsetTop;
+      },
+      pullingUp(){
+        this.getHomeGoodData(this.currentType);
+        this.$refs.scroll.finishPullUp();
+      },
+      swiperImageLoad(){
+        this.tabOffsetTop = this.$refs.tabControl1.$el.offsetTop;
+      },
+
+      //网络请求相关
+      getHomeMultidata(){
+        getHomeMultidata().then((res) => {
+          window.console.log(res);
+          this.banners = res.data.banner.list;
+          this.recommends = res.data.recommend.list;
+        });
+      },
+      getHomeGoodData(type){
+        const page = this.goods[type].page + 1;
+        getHomeGoods(type, page).then(res => {
+          this.goods[type].list.push(...res.data.list);
+          this.goods[type].page = page;
+        });
+      }
     }
   }
 </script>
 
 <style scoped>
+  #home{
+    position: relative;
+    height: 100vh;
+  }
+
   .home-nav{
     background-color: var(--color-tint);
     color: #fff;
+
+    /*position: fixed;*/
+    /*left: 0;*/
+    /*right: 0;*/
+    /*top: 0;*/
+    /*z-index: 9;*/
+  }
+
+  .tab-control{
+    position: relative;
+    z-index: 9;
+  }
+
+  .content{
+    overflow: hidden;
+    position: absolute;
+    top: 44px;
+    bottom: 49px;
+    left: 0;
+    right: 0;
   }
 </style>
