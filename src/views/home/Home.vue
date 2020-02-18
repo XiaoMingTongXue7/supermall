@@ -28,10 +28,10 @@
   import Scroll from "components/common/scrooll/Scroll";
   import TabControl from "components/content/tabControl/TabControl";
   import GoodsList from "components/content/goods/GoodsList";
-  import BackTop from "components/content/backTop/BackTop";
 
   import {getHomeMultidata, getHomeGoods} from "network/home";
   import {debounce} from "common/util";
+  import {itemListenerMixin, backTopMixin} from "../../common/mixin";
 
 
   export default {
@@ -41,7 +41,6 @@
       NavBar,
       TabControl,
       Scroll,
-      BackTop,
 
       RecommendView,
       HomeSwiper,
@@ -65,13 +64,13 @@
             list:[]
           }
         },
-        isShowBackTop: false,
         currentType: 'pop',
         tabOffsetTop: 0,
         isTabFixed: false,
         saveY: 0
       }
     },
+    mixins: [itemListenerMixin, backTopMixin],
     computed: {
       showGoods(){
         return this.goods[this.currentType].list;
@@ -96,10 +95,11 @@
       this.saveY = this.$refs.scroll.scroll.y;
     },
     activated() {
-      this.$refs.scroll.scrollTo(0, this.saveY, 0);
       this.$refs.scroll.refresh();
+      this.$refs.scroll.scrollTo(0, this.saveY, 0);
     },
     destroyed() {
+      this.$bus.$off('itemImageLoad', this.itemImgListener);
     },
     methods: {
       //事件监听相关
@@ -118,12 +118,10 @@
         this.$refs.tabControl1.currentIndex = index;
         this.$refs.tabControl2.currentIndex = index;
       },
-      backClick(){
-        this.$refs.scroll.scrollTo(0, 0);
-      },
+
       contentScroll(position){
         // console.log(position.y);
-        this.isShowBackTop = (-position.y) > 1000;
+        this.listenShowBackTop(position);
         this.isTabFixed = (-position.y) > this.tabOffsetTop;
       },
       pullingUp(){
