@@ -26,7 +26,14 @@
         props: {
             product: {
                 type: Object,
-                return: {}
+                default(){
+                    return{}
+                }
+            }
+        },
+        methods: {
+            checkedChange(){
+                this.product.checked = !this.product.checked;
             }
         }
     }

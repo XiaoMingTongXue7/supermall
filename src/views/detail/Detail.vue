@@ -117,7 +117,9 @@
                 product.price = this.goods.nowPrice;
                 product.iid = this.iid;
 
-                this.$store.dispatch('addCart',product);
+                this.$store.dispatch('addCart', product).then(res => {
+                    this.$toast.show(res);
+                });
             }
         },
         destroyed() {
@@ -132,6 +134,7 @@
         z-index: 9;
         height: 100vh;
         background-color: #fff;
+        overflow: hidden;
     }
 
     .detail-nav-bar{
